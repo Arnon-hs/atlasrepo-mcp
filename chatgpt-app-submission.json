@@ -1,0 +1,116 @@
+{
+  "$schema": "https://developers.openai.com/apps-sdk/schemas/chatgpt-app-submission.v1.json",
+  "schema_version": 1,
+  "app_info": {
+    "display_name": "AtlasRepo",
+    "subtitle": "Find open-source solutions",
+    "description": "AtlasRepo helps builders find evidence-backed open-source repositories, compare implementation options, search normalized tools, and inspect repository decision records through ChatGPT.",
+    "category": "DEVELOPER_TOOLS"
+  },
+  "tools": {
+    "atlasrepo_recommend": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Only retrieves matching recommendations from the AtlasRepo catalog without creating or updating records.",
+        "open_world_justification": "Does not publish content or change any public internet or third-party system state.",
+        "destructive_justification": "Does not delete, overwrite, revoke access, or perform irreversible actions."
+      }
+    },
+    "atlasrepo_search_tools": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Only searches normalized AtlasRepo tool records using the supplied filters.",
+        "open_world_justification": "Does not publish content or change any public internet or third-party system state.",
+        "destructive_justification": "Does not delete, overwrite, revoke access, or perform irreversible actions."
+      }
+    },
+    "atlasrepo_get_repository": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Only retrieves an existing AtlasRepo repository decision record and its linked evidence.",
+        "open_world_justification": "Does not publish content or change any public internet or third-party system state.",
+        "destructive_justification": "Does not delete, overwrite, revoke access, or perform irreversible actions."
+      }
+    }
+  },
+  "test_cases": [
+    {
+      "description": "Recommend repositories for a concrete engineering task.",
+      "user_prompt": "Find open-source tools for adding semantic search over product documentation and a PostgreSQL database.",
+      "file_attachment_urls": null,
+      "tools_triggered": "atlasrepo_recommend",
+      "expected_output": "Returns a bounded set of relevant repositories or workflows with AtlasRepo evidence and decision context.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Recommend content-production solutions.",
+      "user_prompt": "Recommend open-source tools for orchestrating a vertical-video content farm with editing templates.",
+      "file_attachment_urls": null,
+      "tools_triggered": "atlasrepo_recommend",
+      "expected_output": "Returns relevant content-production and orchestration options with practical evidence for comparison.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Search normalized tools by text and quality.",
+      "user_prompt": "Search AtlasRepo for video editing tools with quality at least 0.7.",
+      "file_attachment_urls": null,
+      "tools_triggered": "atlasrepo_search_tools",
+      "expected_output": "Returns normalized matching tools and their available quality metadata without modifying the catalog.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Search tools by category without a text query.",
+      "user_prompt": "List AtlasRepo tools in the orchestration category.",
+      "file_attachment_urls": null,
+      "tools_triggered": "atlasrepo_search_tools",
+      "expected_output": "Returns tools matching the requested category or an empty result when no records match.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Inspect one repository decision record.",
+      "user_prompt": "Show the AtlasRepo evidence for owner/repository octocat/Hello-World.",
+      "file_attachment_urls": null,
+      "tools_triggered": "atlasrepo_get_repository",
+      "expected_output": "Returns the repository decision record and linked evidence, or a clear not-found result when unavailable.",
+      "expected_output_url": null
+    }
+  ],
+  "negative_test_cases": [
+    {
+      "description": "Do not trigger for unrelated calendar requests.",
+      "user_prompt": "What meetings do I have tomorrow?",
+      "file_attachment_urls": null,
+      "tools_triggered": null,
+      "expected_output": "The app should not be invoked because calendar access is outside its supported workflows.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Do not trigger for requests to modify a GitHub repository.",
+      "user_prompt": "Merge my pull request and delete its branch.",
+      "file_attachment_urls": null,
+      "tools_triggered": null,
+      "expected_output": "The app should not be invoked because it cannot modify repositories or GitHub state.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Do not trigger for general writing with no repository discovery need.",
+      "user_prompt": "Rewrite this paragraph in a friendlier tone.",
+      "file_attachment_urls": null,
+      "tools_triggered": null,
+      "expected_output": "The app should not be invoked because the request does not require AtlasRepo catalog data.",
+      "expected_output_url": null
+    }
+  ]
+}

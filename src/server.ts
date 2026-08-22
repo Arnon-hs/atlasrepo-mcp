@@ -39,7 +39,7 @@ export function createAtlasRepoMcpServer(client: AtlasRepoClient): McpServer {
         readOnlyHint: true,
         destructiveHint: false,
         idempotentHint: true,
-        openWorldHint: true,
+        openWorldHint: false,
       },
     },
     async ({ query, limit }) => {
@@ -65,7 +65,7 @@ export function createAtlasRepoMcpServer(client: AtlasRepoClient): McpServer {
         readOnlyHint: true,
         destructiveHint: false,
         idempotentHint: true,
-        openWorldHint: true,
+        openWorldHint: false,
       },
     },
     async (input) => {
@@ -90,7 +90,7 @@ export function createAtlasRepoMcpServer(client: AtlasRepoClient): McpServer {
         readOnlyHint: true,
         destructiveHint: false,
         idempotentHint: true,
-        openWorldHint: true,
+        openWorldHint: false,
       },
     },
     async ({ owner, name }) => {
