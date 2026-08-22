@@ -9,9 +9,15 @@ on:
 
 permissions:
   contents: read
+  checks: read
+
+concurrency:
+  group: atlasrepo-mcp-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   quality:
+    name: 1 / Build MCP
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,6 +31,55 @@ jobs:
       - run: npm run build
       - run: npm run smoke
       - run: npm audit --omit=dev
+
+  deploy:
+    name: 2 / Observe Zeabur deploy
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    needs: quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for the single Git-triggered deployment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for attempt in $(seq 1 60); do
+            check="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/check-runs" --jq '[.check_runs[] | select(.app.name == "Zeabur" and .name == "Zeabur")][0] // {}')"
+            status="$(jq -r '.status // "waiting"' <<<"$check")"
+            conclusion="$(jq -r '.conclusion // ""' <<<"$check")"
+            url="$(jq -r '.details_url // ""' <<<"$check")"
+            if [[ "$status" == "completed" && "$conclusion" == "success" ]]; then echo "Zeabur deployment succeeded: ${url}"; exit 0; fi
+            if [[ "$status" == "completed" && "$conclusion" != "" ]]; then echo "Zeabur deployment finished with ${conclusion}: ${url}" >&2; exit 1; fi
+            echo "Waiting for Zeabur deployment (${status}; ${attempt}/60)"
+            sleep 15
+          done
+          echo "Timed out waiting for Zeabur" >&2
+          exit 1
+
+  migrations:
+    name: 3 / Migrations
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "MCP service has no database migrations."
+
+  tests:
+    name: 4 / Tests
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    needs: migrations
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          curl --fail-with-body --retry 12 --retry-delay 5 --retry-all-errors https://mcp.atlasrepo.com/livez >/dev/null
+          curl --fail-with-body --retry 12 --retry-delay 5 --retry-all-errors https://mcp.atlasrepo.com/readyz >/dev/null
+
+  cache_cleanup:
+    name: 5 / Cache cleanup and warmup
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    needs: tests
+    runs-on: ubuntu-latest
+    steps:
+      - run: curl --fail-with-body "https://mcp.atlasrepo.com/livez?release=${GITHUB_RUN_ID}" >/dev/null
 
   auto-merge:
     name: Auto merge to main
