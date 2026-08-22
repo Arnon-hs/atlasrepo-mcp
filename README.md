@@ -22,14 +22,14 @@ AtlasRepo MCP adapts the public AtlasRepo catalog contract to Model Context Prot
 
 ```mermaid
 flowchart LR
-  Client[MCP client] -->|stdio| Server[AtlasRepo MCP]
-  Remote[Remote MCP client] -->|Streamable HTTP /mcp| Server
-  Server --> Validate[Zod input validation]
-  Validate --> Tools{Read-only tools}
-  Tools --> Recommend[atlasrepo_recommend]
-  Tools --> Search[atlasrepo_search_tools]
-  Tools --> Repo[atlasrepo_get_repository]
-  Recommend --> API[Public AtlasRepo API]
+  Client["MCP client"] -->|"stdio"| Server["AtlasRepo MCP"]
+  Remote["Remote MCP client"] -->|"Streamable HTTP /mcp"| Server
+  Server --> Validate["Zod input validation"]
+  Validate --> Tools{"Read-only tools"}
+  Tools --> Recommend["atlasrepo_recommend"]
+  Tools --> Search["atlasrepo_search_tools"]
+  Tools --> Repo["atlasrepo_get_repository"]
+  Recommend --> API["Public AtlasRepo API"]
   Search --> API
   Repo --> API
 ```
