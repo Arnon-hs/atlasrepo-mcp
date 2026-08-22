@@ -6,7 +6,7 @@ import { createAtlasRepoMcpServer } from "./server.js";
 
 export function createAtlasRepoHttpApp(env: NodeJS.ProcessEnv = process.env) {
   const configuredHosts = (env.MCP_ALLOWED_HOSTS ?? "")
-    .split(",")
+    .split(/[;,\s]+/)
     .map((host) => host.trim())
     .filter(Boolean);
   const allowedHosts = [...new Set(["127.0.0.1", "localhost", ...configuredHosts])];
