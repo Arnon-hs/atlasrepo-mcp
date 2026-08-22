@@ -1,0 +1,37 @@
+{
+  "name": "atlasrepo",
+  "version": "0.1.0",
+  "description": "Evidence-backed open-source repository recommendations for ChatGPT and Codex.",
+  "author": {
+    "name": "AtlasRepo",
+    "url": "https://github.com/Arnon-hs"
+  },
+  "homepage": "https://atlasrepo.com",
+  "repository": "https://github.com/Arnon-hs/atlasrepo-mcp",
+  "license": "MIT",
+  "keywords": [
+    "open-source",
+    "repositories",
+    "developer-tools",
+    "semantic-search",
+    "mcp"
+  ],
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "AtlasRepo",
+    "shortDescription": "Find evidence-backed open-source solutions.",
+    "longDescription": "Search AtlasRepo for repositories, tools, and implementation evidence matched to an engineering or content-production task.",
+    "developerName": "AtlasRepo",
+    "category": "Productivity",
+    "capabilities": ["Read"],
+    "websiteURL": "https://atlasrepo.com",
+    "privacyPolicyURL": "https://atlasrepo.com/privacy",
+    "termsOfServiceURL": "https://atlasrepo.com/legal",
+    "defaultPrompt": [
+      "Find open-source tools for my task.",
+      "Compare repositories for this implementation.",
+      "Show evidence for the best matching repo."
+    ],
+    "brandColor": "#111827"
+  }
+}

@@ -6,28 +6,45 @@
   "bin": {
     "atlasrepo-mcp": "dist/index.js"
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "exports": "./dist/index.js",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "check": "tsc --noEmit",
     "prepack": "npm run build",
+    "start:http": "node dist/http.js",
     "smoke": "node scripts/smoke.mjs",
     "test": "node --test --import tsx tests/**/*.test.ts"
   },
-  "engines": { "node": ">=20" },
-  "keywords": ["atlasrepo", "mcp", "codex", "claude", "open-source", "developer-tools"],
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "atlasrepo",
+    "mcp",
+    "codex",
+    "claude",
+    "open-source",
+    "developer-tools"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Arnon-hs/atlasrepo-mcp.git"
   },
-  "bugs": { "url": "https://github.com/Arnon-hs/atlasrepo-mcp/issues" },
+  "bugs": {
+    "url": "https://github.com/Arnon-hs/atlasrepo-mcp/issues"
+  },
   "homepage": "https://atlasrepo.com",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
+    "express": "^5.2.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@types/express": "^5.0.6",
     "@types/node": "^22.19.15",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3"
