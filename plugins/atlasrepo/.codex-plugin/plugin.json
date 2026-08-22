@@ -1,6 +1,6 @@
 {
   "name": "atlasrepo",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Evidence-backed open-source repository recommendations for ChatGPT and Codex.",
   "author": {
     "name": "AtlasRepo",
@@ -25,8 +25,8 @@
     "category": "Productivity",
     "capabilities": ["Read"],
     "websiteURL": "https://atlasrepo.com",
-    "privacyPolicyURL": "https://atlasrepo.com/privacy",
-    "termsOfServiceURL": "https://atlasrepo.com/legal",
+    "privacyPolicyURL": "https://atlasrepo.com/#/legal?doc=privacy&lang=en",
+    "termsOfServiceURL": "https://atlasrepo.com/#/legal?doc=terms&lang=en",
     "defaultPrompt": [
       "Find open-source tools for my task.",
       "Compare repositories for this implementation.",
