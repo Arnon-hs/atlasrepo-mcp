@@ -1,0 +1,89 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import { AtlasRepoApiError, AtlasRepoClient, clientFromEnvironment } from "../src/client.js";
+
+function jsonResponse(value: unknown, status = 200): Response {
+  return new Response(JSON.stringify(value), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
+}
+
+test("recommend sends a bounded JSON request with auth", async () => {
+  let capturedUrl = "";
+  let capturedInit: RequestInit | undefined;
+  const client = new AtlasRepoClient({
+    baseUrl: "https://example.test/root/",
+    apiKey: "secret",
+    fetchImpl: async (input, init) => {
+      capturedUrl = String(input);
+      capturedInit = init;
+      return jsonResponse({ stories: [] });
+    },
+  });
+
+  const result = await client.recommend({ query: "video orchestration", limit: 5 });
+
+  assert.deepEqual(result, { stories: [] });
+  assert.equal(capturedUrl, "https://example.test/root/api/recommendations");
+  assert.equal(capturedInit?.method, "POST");
+  assert.equal(capturedInit?.body, '{"query":"video orchestration","limit":5}');
+  const headers = new Headers(capturedInit?.headers);
+  assert.equal(headers.get("authorization"), "Bearer secret");
+});
+
+test("searchTools encodes filters without inventing empty parameters", async () => {
+  let capturedUrl = "";
+  const client = new AtlasRepoClient({
+    baseUrl: "https://example.test",
+    fetchImpl: async (input) => {
+      capturedUrl = String(input);
+      return jsonResponse({ tools: [] });
+    },
+  });
+
+  await client.searchTools({ q: "vertical video", minQuality: 0.7 });
+
+  const url = new URL(capturedUrl);
+  assert.equal(url.pathname, "/api/tools");
+  assert.equal(url.searchParams.get("q"), "vertical video");
+  assert.equal(url.searchParams.get("minQuality"), "0.7");
+  assert.equal(url.searchParams.has("kind"), false);
+});
+
+test("getRepository safely encodes path segments", async () => {
+  let capturedUrl = "";
+  const client = new AtlasRepoClient({
+    baseUrl: "https://example.test",
+    fetchImpl: async (input) => {
+      capturedUrl = String(input);
+      return jsonResponse({ repository: {} });
+    },
+  });
+
+  await client.getRepository("owner name", "repo/name");
+  assert.equal(capturedUrl, "https://example.test/api/repos/owner%20name/repo%2Fname");
+});
+
+test("API failures expose status but not response bodies", async () => {
+  const client = new AtlasRepoClient({
+    fetchImpl: async () => new Response("internal secret", { status: 503, statusText: "Unavailable" }),
+  });
+
+  await assert.rejects(client.searchTools({ q: "test" }), (error: unknown) => {
+    assert.ok(error instanceof AtlasRepoApiError);
+    assert.equal(error.status, 503);
+    assert.equal(error.message, "AtlasRepo API returned 503 Unavailable");
+    assert.equal(error.message.includes("internal secret"), false);
+    return true;
+  });
+});
+
+test("environment factory falls back from an invalid timeout", () => {
+  const client = clientFromEnvironment({
+    ATLASREPO_API_BASE_URL: "https://example.test",
+    ATLASREPO_REQUEST_TIMEOUT_MS: "not-a-number",
+  });
+  assert.equal(client.baseUrl.href, "https://example.test/");
+});

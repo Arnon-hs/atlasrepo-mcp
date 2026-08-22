@@ -1,0 +1,35 @@
+{
+  "name": "@atlasrepo/mcp",
+  "version": "0.1.0",
+  "description": "Read-only MCP connector for the AtlasRepo open-source decision catalog",
+  "type": "module",
+  "bin": {
+    "atlasrepo-mcp": "dist/index.js"
+  },
+  "files": ["dist", "README.md"],
+  "exports": "./dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "check": "tsc --noEmit",
+    "prepack": "npm run build",
+    "smoke": "node scripts/smoke.mjs",
+    "test": "node --test --import tsx tests/**/*.test.ts"
+  },
+  "engines": { "node": ">=20" },
+  "keywords": ["atlasrepo", "mcp", "codex", "claude", "open-source", "developer-tools"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Arnon-hs/atlasrepo-mcp.git"
+  },
+  "bugs": { "url": "https://github.com/Arnon-hs/atlasrepo-mcp/issues" },
+  "homepage": "https://atlasrepo.com",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.15",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}
