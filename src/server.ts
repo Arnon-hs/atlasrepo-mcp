@@ -35,6 +35,12 @@ export function createAtlasRepoMcpServer(client: AtlasRepoClient): McpServer {
         query: z.string().trim().min(3).max(1_000).describe("Problem or outcome to solve"),
         limit: z.number().int().min(1).max(20).default(8).describe("Maximum recommendations"),
       },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ query, limit }) => {
       try {
@@ -55,6 +61,12 @@ export function createAtlasRepoMcpServer(client: AtlasRepoClient): McpServer {
         kind: z.string().trim().max(100).optional().describe("Tool kind or category"),
         minQuality: z.number().min(0).max(1).optional().describe("Minimum normalized quality score"),
       },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async (input) => {
       try {
@@ -73,6 +85,12 @@ export function createAtlasRepoMcpServer(client: AtlasRepoClient): McpServer {
       inputSchema: {
         owner: z.string().trim().min(1).max(100).regex(/^[A-Za-z0-9_.-]+$/),
         name: z.string().trim().min(1).max(100).regex(/^[A-Za-z0-9_.-]+$/),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
       },
     },
     async ({ owner, name }) => {
