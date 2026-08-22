@@ -10,14 +10,18 @@ copying the full catalog into an agent context window.
 Codex:
 
 ```sh
-codex mcp add atlasrepo -- npx -y @atlasrepo/mcp
+codex mcp add atlasrepo -- npx -y github:Arnon-hs/atlasrepo-mcp
 ```
 
 Claude Code:
 
 ```sh
-claude mcp add atlasrepo -- npx -y @atlasrepo/mcp
+claude mcp add atlasrepo -- npx -y github:Arnon-hs/atlasrepo-mcp
 ```
+
+These commands install the reviewed `main` branch directly from the public
+repository. After the `@atlasrepo` npm scope is authenticated and the package
+is published, `npx -y @atlasrepo/mcp` will be the shorter registry equivalent.
 
 The default API is `https://atlasrepo.com`. Override it for development:
 
