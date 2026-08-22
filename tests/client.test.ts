@@ -87,3 +87,8 @@ test("environment factory falls back from an invalid timeout", () => {
   });
   assert.equal(client.baseUrl.href, "https://example.test/");
 });
+
+test("environment factory uses the isolated public API by default", () => {
+  const client = clientFromEnvironment({});
+  assert.equal(client.baseUrl.href, "https://api.atlasrepo.com/");
+});

@@ -1,7 +1,8 @@
 {
-  "name": "@atlasrepo/mcp",
+  "name": "atlasrepo-mcp",
   "version": "0.1.0",
   "description": "Read-only MCP connector for the AtlasRepo open-source decision catalog",
+  "license": "MIT",
   "type": "module",
   "bin": {
     "atlasrepo-mcp": "dist/index.js"
@@ -17,6 +18,7 @@
     "prepack": "npm run build",
     "start:http": "node dist/http.js",
     "smoke": "node scripts/smoke.mjs",
+    "smoke:package": "node scripts/smoke-package.mjs",
     "test": "node --test --import tsx tests/**/*.test.ts"
   },
   "engines": {
@@ -38,6 +40,10 @@
     "url": "https://github.com/Arnon-hs/atlasrepo-mcp/issues"
   },
   "homepage": "https://atlasrepo.com",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
     "express": "^5.2.1",

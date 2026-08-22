@@ -1,4 +1,4 @@
-const DEFAULT_BASE_URL = "https://atlasrepo.com";
+const DEFAULT_BASE_URL = "https://api.atlasrepo.com";
 const DEFAULT_TIMEOUT_MS = 15_000;
 
 type Fetch = typeof fetch;
