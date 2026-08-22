@@ -73,5 +73,6 @@ Endpoints:
 - `POST /mcp` — stateless Streamable HTTP MCP transport.
 - `GET /livez` and `GET /readyz` — deployment health probes.
 
-`MCP_ALLOWED_HOSTS` is a comma-separated allowlist. Keep the generated Zeabur
-hostname in the list until the custom `mcp.atlasrepo.com` domain is active.
+`MCP_ALLOWED_HOSTS` accepts comma-, semicolon-, or whitespace-separated hosts.
+Keep the generated Zeabur hostname in the list until the custom
+`mcp.atlasrepo.com` domain is active.
