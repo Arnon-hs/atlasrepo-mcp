@@ -1,86 +1,126 @@
-# AtlasRepo MCP
+<div align="center">
+  <img src="docs/images/atlasrepo-mark.svg" width="72" alt="AtlasRepo" />
+  <h1>AtlasRepo MCP</h1>
+  <p><strong>A public, read-only MCP connector for evidence-backed repository decisions.</strong></p>
+  <p><code>POST /mcp</code> · <a href="https://mcp.atlasrepo.com/readyz">Readiness</a> · <a href="https://mcp.atlasrepo.com/livez">Liveness</a> · <a href="README.ru.md">Русский</a></p>
+  <a href="https://github.com/Arnon-hs/atlasrepo-mcp/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Arnon-hs/atlasrepo-mcp/actions/workflows/ci.yml/badge.svg" /></a>
+  <a href="https://github.com/Arnon-hs/atlasrepo-mcp/actions/workflows/publish.yml"><img alt="Publish" src="https://github.com/Arnon-hs/atlasrepo-mcp/actions/workflows/publish.yml/badge.svg" /></a>
+</div>
 
-Public, read-only MCP connector for the AtlasRepo open-source decision catalog.
+## Purpose
 
-The server exposes compact tools for finding implementation evidence without
-copying the full catalog into an agent context window.
+AtlasRepo MCP adapts the public AtlasRepo catalog contract to Model Context Protocol clients. It supports local stdio and hosted Streamable HTTP, exposes three bounded read-only tools, and contains no private scoring, account or billing logic.
 
-## Connect in one command
+| Owns | Does not own |
+| --- | --- |
+| MCP protocol, schemas and tool descriptions | Catalog ingestion, scoring or moderation |
+| Bounded API client, timeouts and result truncation | Authentication, accounts or payments |
+| stdio executable and Streamable HTTP endpoint | Web/Admin UI or database access |
+| Origin/host validation and health endpoints | Arbitrary URL fetching or code execution |
 
-Codex:
+## Architecture
 
-```sh
-codex mcp add atlasrepo -- npx -y atlasrepo-mcp
+```mermaid
+flowchart LR
+  Client[MCP client] -->|stdio| Server[AtlasRepo MCP]
+  Remote[Remote MCP client] -->|Streamable HTTP /mcp| Server
+  Server --> Validate[Zod input validation]
+  Validate --> Tools{Read-only tools}
+  Tools --> Recommend[atlasrepo_recommend]
+  Tools --> Search[atlasrepo_search_tools]
+  Tools --> Repo[atlasrepo_get_repository]
+  Recommend --> API[Public AtlasRepo API]
+  Search --> API
+  Repo --> API
 ```
-
-Claude Code:
-
-```sh
-claude mcp add atlasrepo -- npx -y atlasrepo-mcp
-```
-
-These commands install the public `atlasrepo-mcp` package from npm. Before the
-first registry release is visible, the reviewed `main` branch remains available
-as a source-install fallback:
-
-```sh
-codex mcp add atlasrepo -- npx -y github:Arnon-hs/atlasrepo-mcp
-```
-
-The repository also contains a Codex plugin bundle at `plugins/atlasrepo`.
-Install it from a marketplace that points at this repository, or use the
-one-command MCP setup above until the public plugin review is complete.
-
-The default API is the isolated public service at `https://api.atlasrepo.com`.
-Override it for development:
-
-```sh
-ATLASREPO_API_BASE_URL=http://localhost:8787 npx atlasrepo-mcp
-```
-
-If the API requires authentication, set `ATLASREPO_API_KEY`. The connector is
-read-only and never writes secrets or API responses to stderr.
 
 ## Tools
 
-- `atlasrepo_recommend` — find evidence-backed projects and workflow stories
-  for a concrete problem.
-- `atlasrepo_search_tools` — search normalized tools by text, kind, and minimum
-  quality score.
-- `atlasrepo_get_repository` — load one repository decision record and its
-  linked evidence.
+| Tool | Input | Result |
+| --- | --- | --- |
+| `atlasrepo_recommend` | A bounded problem/use-case query | Evidence-backed repository recommendations |
+| `atlasrepo_search_tools` | Search text and bounded filters | Matching tools from the approved catalog |
+| `atlasrepo_get_repository` | Repository owner and name | One repository evidence record |
 
-## Development
+All inputs are schema-validated. Upstream calls have a timeout and responses are truncated to a safe maximum. The connector never executes discovered repositories.
 
-```sh
+## Technology
+
+| Area | Choice |
+| --- | --- |
+| Language/runtime | TypeScript, Node.js 20+ |
+| Protocol | Model Context Protocol SDK |
+| HTTP | Express 5, Streamable HTTP |
+| Validation | Zod 4 |
+| Distribution | npm executable and Docker/Zeabur service |
+
+## Local stdio setup
+
+```bash
 npm ci
 npm run check
 npm test
 npm run build
-npm run smoke
+node dist/index.js
 ```
 
-The connector depends only on AtlasRepo's published REST contract. It contains
-no private Scout, ranking, or ingestion implementation.
+Client configuration after package publication:
 
-Maintainers can follow [PUBLISHING.md](PUBLISHING.md) for the first npm release
-and the tokenless trusted-publishing setup used by subsequent version tags.
-
-## Remote MCP for ChatGPT
-
-ChatGPT connects to the Streamable HTTP endpoint rather than spawning a local
-`npx` process. Build and run it with:
-
-```sh
-npm run build
-MCP_ALLOWED_HOSTS=mcp.atlasrepo.com npm run start:http
+```json
+{
+  "mcpServers": {
+    "atlasrepo": {
+      "command": "npx",
+      "args": ["-y", "atlasrepo-mcp"]
+    }
+  }
+}
 ```
 
-Endpoints:
+## HTTP service
 
-- `POST /mcp` — stateless Streamable HTTP MCP transport.
-- `GET /livez` and `GET /readyz` — deployment health probes.
+```bash
+PORT=8080 MCP_ALLOWED_HOSTS=localhost npm run start:http
+```
 
-`MCP_ALLOWED_HOSTS` accepts comma-, semicolon-, or whitespace-separated hosts.
-Keep the generated Zeabur hostname in the list until the custom
-`mcp.atlasrepo.com` domain is active.
+| Variable | Purpose |
+| --- | --- |
+| `ATLASREPO_API_BASE_URL` | Upstream public API origin |
+| `ATLASREPO_API_KEY` | Optional upstream key; keep secret |
+| `ATLASREPO_REQUEST_TIMEOUT_MS` | Bounded upstream timeout |
+| `PORT` | HTTP listener port |
+| `MCP_ALLOWED_HOSTS` | Comma/space/semicolon-separated Host allowlist |
+
+Use [.env.example](.env.example) as the non-secret template. Never remove immutable or inherited Zeabur variables.
+
+## Deployment and publishing
+
+Every pull request runs one five-stage service release:
+
+1. **Build** — typecheck, tests, package smoke and Docker build.
+2. **Deploy** — auto-merge after checks; Zeabur observes one `main` commit.
+3. **Migrations** — explicit no-op; MCP owns no database schema.
+4. **Tests** — `/livez`, `/readyz`, `/mcp` transport and read-only tool smoke.
+5. **Cache cleanup** — targeted build/package cache cleanup.
+
+Do not manually deploy the same merged commit. npm publication is separate: create a reviewed semantic-version tag and let the trusted-publishing workflow publish the package.
+
+## Engineering rules
+
+- Preserve read-only behavior and bounded inputs, timeouts and result sizes.
+- Keep stdout protocol-clean in stdio mode; diagnostics go to stderr without secrets.
+- Never log API keys, authorization headers or full upstream payloads.
+- Add schemas and tests with every tool/contract change.
+- Conventional Commits: `feat(mcp): ...`, `fix(http): ...`, `docs(mcp): ...`.
+
+## Pull request checklist
+
+- [ ] `npm run check`, `npm test`, `npm run build` and `npm run smoke` pass.
+- [ ] stdio stdout contains protocol messages only.
+- [ ] HTTP host/origin protections and health contracts remain intact.
+- [ ] No private Platform/Scout logic or write operation was added.
+- [ ] One merge created one MCP service deployment.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
