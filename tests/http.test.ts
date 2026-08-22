@@ -31,6 +31,7 @@ test("Streamable HTTP endpoint initializes and exposes read-only tools", async (
   for (const tool of result.tools) {
     assert.equal(tool.annotations?.readOnlyHint, true);
     assert.equal(tool.annotations?.destructiveHint, false);
+    assert.equal(tool.annotations?.openWorldHint, false);
   }
 
   const health = await fetch(`http://127.0.0.1:${port}/livez`);
