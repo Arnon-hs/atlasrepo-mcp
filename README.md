@@ -10,27 +10,32 @@ copying the full catalog into an agent context window.
 Codex:
 
 ```sh
-codex mcp add atlasrepo -- npx -y github:Arnon-hs/atlasrepo-mcp
+codex mcp add atlasrepo -- npx -y atlasrepo-mcp
 ```
 
 Claude Code:
 
 ```sh
-claude mcp add atlasrepo -- npx -y github:Arnon-hs/atlasrepo-mcp
+claude mcp add atlasrepo -- npx -y atlasrepo-mcp
 ```
 
-These commands install the reviewed `main` branch directly from the public
-repository. After the `@atlasrepo` npm scope is authenticated and the package
-is published, `npx -y @atlasrepo/mcp` will be the shorter registry equivalent.
+These commands install the public `atlasrepo-mcp` package from npm. Before the
+first registry release is visible, the reviewed `main` branch remains available
+as a source-install fallback:
+
+```sh
+codex mcp add atlasrepo -- npx -y github:Arnon-hs/atlasrepo-mcp
+```
 
 The repository also contains a Codex plugin bundle at `plugins/atlasrepo`.
 Install it from a marketplace that points at this repository, or use the
 one-command MCP setup above until the public plugin review is complete.
 
-The default API is `https://atlasrepo.com`. Override it for development:
+The default API is the isolated public service at `https://api.atlasrepo.com`.
+Override it for development:
 
 ```sh
-ATLASREPO_API_BASE_URL=http://localhost:8787 npx @atlasrepo/mcp
+ATLASREPO_API_BASE_URL=http://localhost:8787 npx atlasrepo-mcp
 ```
 
 If the API requires authentication, set `ATLASREPO_API_KEY`. The connector is
@@ -57,6 +62,9 @@ npm run smoke
 
 The connector depends only on AtlasRepo's published REST contract. It contains
 no private Scout, ranking, or ingestion implementation.
+
+Maintainers can follow [PUBLISHING.md](PUBLISHING.md) for the first npm release
+and the tokenless trusted-publishing setup used by subsequent version tags.
 
 ## Remote MCP for ChatGPT
 
