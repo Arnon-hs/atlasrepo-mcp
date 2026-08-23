@@ -5,12 +5,37 @@ import { AtlasRepoApiError, AtlasRepoClient } from "./client.js";
 
 const MAX_RESULT_CHARS = 40_000;
 
+const recordSchema = z.record(z.string(), z.unknown());
+
+const recommendOutputSchema = {
+  stories: z.array(recordSchema).describe("Evidence-backed AtlasRepo recommendation records"),
+  access: z.string().describe("Access tier used for this response"),
+};
+
+const searchToolsOutputSchema = {
+  tools: z.array(recordSchema).describe("Normalized open-source tool records"),
+  access: z.string().describe("Access tier used for this response"),
+};
+
+const repositoryOutputSchema = {
+  repo: recordSchema.describe("AtlasRepo repository decision record"),
+  linkedStories: z.array(recordSchema).describe("Published stories linked to the repository"),
+  access: z.string().describe("Access tier used for this response"),
+};
+
 function toolResult(value: unknown) {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return toolError(new Error("AtlasRepo API returned an invalid result shape"));
+  }
+
   const serialized = JSON.stringify(value, null, 2);
   const text = serialized.length <= MAX_RESULT_CHARS
     ? serialized
     : `${serialized.slice(0, MAX_RESULT_CHARS)}\n... response truncated by AtlasRepo MCP`;
-  return { content: [{ type: "text" as const, text }] };
+  return {
+    content: [{ type: "text" as const, text }],
+    structuredContent: value as Record<string, unknown>,
+  };
 }
 
 function toolError(error: unknown) {
@@ -35,6 +60,7 @@ export function createAtlasRepoMcpServer(client: AtlasRepoClient): McpServer {
         query: z.string().trim().min(3).max(1_000).describe("Problem or outcome to solve"),
         limit: z.number().int().min(1).max(20).default(8).describe("Maximum recommendations"),
       },
+      outputSchema: recommendOutputSchema,
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -61,6 +87,7 @@ export function createAtlasRepoMcpServer(client: AtlasRepoClient): McpServer {
         kind: z.string().trim().max(100).optional().describe("Tool kind or category"),
         minQuality: z.number().min(0).max(1).optional().describe("Minimum normalized quality score"),
       },
+      outputSchema: searchToolsOutputSchema,
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -86,6 +113,7 @@ export function createAtlasRepoMcpServer(client: AtlasRepoClient): McpServer {
         owner: z.string().trim().min(1).max(100).regex(/^[A-Za-z0-9_.-]+$/),
         name: z.string().trim().min(1).max(100).regex(/^[A-Za-z0-9_.-]+$/),
       },
+      outputSchema: repositoryOutputSchema,
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
