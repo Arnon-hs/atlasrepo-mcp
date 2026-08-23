@@ -78,8 +78,7 @@ Other stdio MCP clients can launch the published package with `npx -y atlasrepo-
 The repository also ships a validated Codex plugin bundle. Add its marketplace once, then install the plugin:
 
 ```bash
-codex plugin marketplace add Arnon-hs/atlasrepo-mcp
-codex plugin add atlasrepo@atlasrepo
+codex plugin marketplace add Arnon-hs/atlasrepo-mcp && codex plugin add atlasrepo@atlasrepo
 ```
 
 The plugin uses the same published npm executable. The first command is no longer needed after the AtlasRepo marketplace has been configured.

@@ -78,8 +78,7 @@ claude mcp add atlasrepo -- npx -y atlasrepo-mcp
 В репозитории также находится валидируемый Codex plugin bundle. Один раз добавьте marketplace, затем установите plugin:
 
 ```bash
-codex plugin marketplace add Arnon-hs/atlasrepo-mcp
-codex plugin add atlasrepo@atlasrepo
+codex plugin marketplace add Arnon-hs/atlasrepo-mcp && codex plugin add atlasrepo@atlasrepo
 ```
 
 Plugin использует тот же опубликованный npm executable. После добавления AtlasRepo marketplace первую команду повторять не нужно.
