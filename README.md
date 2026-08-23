@@ -5,6 +5,7 @@
   <p><code>POST /mcp</code> · <a href="https://mcp.atlasrepo.com/readyz">Readiness</a> · <a href="https://mcp.atlasrepo.com/livez">Liveness</a> · <a href="README.ru.md">Русский</a></p>
   <a href="https://github.com/Arnon-hs/atlasrepo-mcp/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Arnon-hs/atlasrepo-mcp/actions/workflows/ci.yml/badge.svg" /></a>
   <a href="https://github.com/Arnon-hs/atlasrepo-mcp/actions/workflows/publish.yml"><img alt="Publish" src="https://github.com/Arnon-hs/atlasrepo-mcp/actions/workflows/publish.yml/badge.svg" /></a>
+  <a href="https://www.npmjs.com/package/atlasrepo-mcp"><img alt="npm" src="https://img.shields.io/npm/v/atlasrepo-mcp" /></a>
 </div>
 
 ## Purpose
@@ -54,17 +55,36 @@ All inputs are schema-validated. Upstream calls have a timeout and responses are
 | Validation | Zod 4 |
 | Distribution | npm executable and Docker/Zeabur service |
 
-## Local stdio setup
+## Install in one command
+
+The public tools work through the anonymous free fallback. `ATLASREPO_API_KEY` is optional and should only be added through the client's environment when account limits or private features are needed.
+
+Codex:
 
 ```bash
-npm ci
-npm run check
-npm test
-npm run build
-node dist/index.js
+codex mcp add atlasrepo -- npx -y atlasrepo-mcp
 ```
 
-Client configuration after package publication:
+Claude Code:
+
+```bash
+claude mcp add atlasrepo -- npx -y atlasrepo-mcp
+```
+
+Other stdio MCP clients can launch the published package with `npx -y atlasrepo-mcp` and the hosted Streamable HTTP endpoint is `https://mcp.atlasrepo.com/mcp`.
+
+### Full Codex plugin
+
+The repository also ships a validated Codex plugin bundle. Add its marketplace once, then install the plugin:
+
+```bash
+codex plugin marketplace add Arnon-hs/atlasrepo-mcp
+codex plugin add atlasrepo@atlasrepo
+```
+
+The plugin uses the same published npm executable. The first command is no longer needed after the AtlasRepo marketplace has been configured.
+
+### Generic MCP client configuration
 
 ```json
 {
@@ -75,6 +95,16 @@ Client configuration after package publication:
     }
   }
 }
+```
+
+## Local development
+
+```bash
+npm ci
+npm run check
+npm test
+npm run build
+node dist/index.js
 ```
 
 ## HTTP service
