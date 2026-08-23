@@ -4,8 +4,11 @@ import test from "node:test";
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 
+import { AtlasRepoClient } from "../src/client.js";
 import { createAtlasRepoHttpApp } from "../src/http-app.js";
+import { createAtlasRepoMcpServer } from "../src/server.js";
 
 test("Streamable HTTP endpoint initializes and exposes read-only tools", async (context) => {
   const listener = createAtlasRepoHttpApp().listen(0, "127.0.0.1");
@@ -32,9 +35,41 @@ test("Streamable HTTP endpoint initializes and exposes read-only tools", async (
     assert.equal(tool.annotations?.readOnlyHint, true);
     assert.equal(tool.annotations?.destructiveHint, false);
     assert.equal(tool.annotations?.openWorldHint, false);
+    assert.ok(tool.outputSchema, `${tool.name} must declare an output schema`);
   }
 
   const health = await fetch(`http://127.0.0.1:${port}/livez`);
   assert.equal(health.status, 200);
   assert.equal(await health.text(), "ok");
+});
+
+test("tool calls return structured content matching the declared output schema", async (context) => {
+  const upstreamResult = {
+    tools: [{ id: "tool_example", name: "example/project", kind: "github_repo" }],
+    access: "anonymous",
+  };
+  const atlasRepoClient = new AtlasRepoClient({
+    fetchImpl: async () => new Response(JSON.stringify(upstreamResult), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    }),
+  });
+  const server = createAtlasRepoMcpServer(atlasRepoClient);
+  const client = new Client({ name: "atlasrepo-structured-output-test", version: "1.0.0" });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+
+  await server.connect(serverTransport);
+  await client.connect(clientTransport);
+  context.after(async () => {
+    await client.close();
+    await server.close();
+  });
+
+  const result = await client.callTool({
+    name: "atlasrepo_search_tools",
+    arguments: { q: "semantic search" },
+  });
+
+  assert.deepEqual(result.structuredContent, upstreamResult);
+  assert.equal(result.isError, undefined);
 });
