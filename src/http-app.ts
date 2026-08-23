@@ -22,6 +22,21 @@ export function createAtlasRepoHttpApp(env: NodeJS.ProcessEnv = process.env) {
     response.type("text/plain").send("ok");
   });
 
+  app.get("/.well-known/openai-apps-challenge", (_request, response) => {
+    const token = env.OPENAI_APPS_CHALLENGE_TOKEN?.trim();
+    if (!token) {
+      response.sendStatus(404);
+      return;
+    }
+
+    response
+      .status(200)
+      .type("text/plain")
+      .set("Cache-Control", "no-store")
+      .set("X-Content-Type-Options", "nosniff")
+      .send(token);
+  });
+
   app.post("/mcp", async (request, response) => {
     const server = createAtlasRepoMcpServer(clientFromEnvironment());
     const transport = new StreamableHTTPServerTransport();

@@ -11,7 +11,11 @@ import { createAtlasRepoHttpApp } from "../src/http-app.js";
 import { createAtlasRepoMcpServer } from "../src/server.js";
 
 test("Streamable HTTP endpoint initializes and exposes read-only tools", async (context) => {
-  const listener = createAtlasRepoHttpApp().listen(0, "127.0.0.1");
+  const challengeToken = "openai-domain-verification-token";
+  const listener = createAtlasRepoHttpApp({
+    ...process.env,
+    OPENAI_APPS_CHALLENGE_TOKEN: ` ${challengeToken} `,
+  }).listen(0, "127.0.0.1");
   await new Promise<void>((resolve, reject) => {
     listener.once("listening", resolve);
     listener.once("error", reject);
@@ -41,6 +45,27 @@ test("Streamable HTTP endpoint initializes and exposes read-only tools", async (
   const health = await fetch(`http://127.0.0.1:${port}/livez`);
   assert.equal(health.status, 200);
   assert.equal(await health.text(), "ok");
+
+  const challenge = await fetch(`http://127.0.0.1:${port}/.well-known/openai-apps-challenge`);
+  assert.equal(challenge.status, 200);
+  assert.match(challenge.headers.get("content-type") ?? "", /^text\/plain/);
+  assert.equal(challenge.headers.get("cache-control"), "no-store");
+  assert.equal(await challenge.text(), challengeToken);
+});
+
+test("domain verification challenge is unavailable without a configured token", async (context) => {
+  const listener = createAtlasRepoHttpApp({}).listen(0, "127.0.0.1");
+  await new Promise<void>((resolve, reject) => {
+    listener.once("listening", resolve);
+    listener.once("error", reject);
+  });
+  context.after(() => new Promise<void>((resolve, reject) => {
+    listener.close((error) => error ? reject(error) : resolve());
+  }));
+
+  const { port } = listener.address() as AddressInfo;
+  const challenge = await fetch(`http://127.0.0.1:${port}/.well-known/openai-apps-challenge`);
+  assert.equal(challenge.status, 404);
 });
 
 test("tool calls return structured content matching the declared output schema", async (context) => {
