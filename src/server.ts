@@ -49,7 +49,7 @@ function toolError(error: unknown) {
 }
 
 export function createAtlasRepoMcpServer(client: AtlasRepoClient): McpServer {
-  const server = new McpServer({ name: "atlasrepo", version: "0.1.0" });
+  const server = new McpServer({ name: "atlasrepo", version: "0.1.1" });
 
   server.registerTool(
     "atlasrepo_recommend",
