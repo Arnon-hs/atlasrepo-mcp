@@ -5,6 +5,7 @@
   <p><code>POST /mcp</code> · <a href="https://mcp.atlasrepo.com/readyz">Readiness</a> · <a href="https://mcp.atlasrepo.com/livez">Liveness</a> · <a href="README.md">English</a></p>
   <a href="https://github.com/Arnon-hs/atlasrepo-mcp/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Arnon-hs/atlasrepo-mcp/actions/workflows/ci.yml/badge.svg" /></a>
   <a href="https://github.com/Arnon-hs/atlasrepo-mcp/actions/workflows/publish.yml"><img alt="Publish" src="https://github.com/Arnon-hs/atlasrepo-mcp/actions/workflows/publish.yml/badge.svg" /></a>
+  <a href="https://www.npmjs.com/package/atlasrepo-mcp"><img alt="npm" src="https://img.shields.io/npm/v/atlasrepo-mcp" /></a>
 </div>
 
 ## Назначение
@@ -54,17 +55,36 @@ Inputs проходят schema validation, upstream calls имеют timeout, re
 | Validation | Zod 4 |
 | Distribution | npm executable и Docker/Zeabur service |
 
-## Локальный stdio
+## Установка одной командой
+
+Публичные tools работают через анонимный бесплатный fallback. `ATLASREPO_API_KEY` необязателен и добавляется только через environment клиента, когда нужны лимиты аккаунта или закрытые возможности.
+
+Codex:
 
 ```bash
-npm ci
-npm run check
-npm test
-npm run build
-node dist/index.js
+codex mcp add atlasrepo -- npx -y atlasrepo-mcp
 ```
 
-Конфигурация клиента после публикации package:
+Claude Code:
+
+```bash
+claude mcp add atlasrepo -- npx -y atlasrepo-mcp
+```
+
+Другие stdio MCP-клиенты могут запускать опубликованный пакет командой `npx -y atlasrepo-mcp`. Hosted Streamable HTTP endpoint: `https://mcp.atlasrepo.com/mcp`.
+
+### Полный Codex plugin
+
+В репозитории также находится валидируемый Codex plugin bundle. Один раз добавьте marketplace, затем установите plugin:
+
+```bash
+codex plugin marketplace add Arnon-hs/atlasrepo-mcp
+codex plugin add atlasrepo@atlasrepo
+```
+
+Plugin использует тот же опубликованный npm executable. После добавления AtlasRepo marketplace первую команду повторять не нужно.
+
+### Конфигурация любого MCP-клиента
 
 ```json
 {
@@ -75,6 +95,16 @@ node dist/index.js
     }
   }
 }
+```
+
+## Локальная разработка
+
+```bash
+npm ci
+npm run check
+npm test
+npm run build
+node dist/index.js
 ```
 
 ## HTTP service
