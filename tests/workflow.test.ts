@@ -7,7 +7,7 @@ const source = (path: string): string =>
 
 test("trusted MCP releases use one dynamically labeled ephemeral runner", () => {
   const workflow = source(".github/workflows/ci.yml");
-  const pin = "04b4b021f38493117a68ed52c605e01f2f495f35";
+  const pin = "96807f37c85f7f6f6b5743e305e6385157fafd4d";
 
   assert.match(workflow, new RegExp(`actions/provision@${pin}`));
   assert.match(workflow, new RegExp(`actions/destroy@${pin}`));
