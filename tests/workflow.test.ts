@@ -5,18 +5,34 @@ import test from "node:test";
 const source = (path: string): string =>
   readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
-test("trusted MCP releases use one dynamically labeled ephemeral runner", () => {
+test("trusted MCP main verification uses one dynamically labeled ephemeral runner", () => {
   const workflow = source(".github/workflows/ci.yml");
-  const pin = "96807f37c85f7f6f6b5743e305e6385157fafd4d";
 
-  assert.match(workflow, new RegExp(`actions/provision@${pin}`));
-  assert.match(workflow, new RegExp(`actions/destroy@${pin}`));
-  assert.match(workflow, /needs\.provision\.outputs\.runner-label/);
-  assert.match(workflow, /retention-days: 1/);
+  assert.match(
+    workflow,
+    /runs-on: \[self-hosted, linux, x64, jit-runner, "jit-run-\$\{\{ github\.run_id \}\}"\]/,
+  );
+  assert.match(workflow, /github\.repository == 'Arnon-hs\/atlasrepo-mcp'/);
+  assert.match(workflow, /github\.ref == 'refs\/heads\/main'/);
+  assert.match(workflow, /timeout-minutes: 45/);
   assert.match(workflow, /cancel-in-progress: false/);
-  assert.doesNotMatch(workflow, /runs-on: \[self-hosted, linux, x64, jit-runner\]/);
+  assert.match(workflow, /docker build --tag "\$image" \./);
+  assert.match(workflow, /docker image inspect "\$image"/);
+  assert.doesNotMatch(workflow, /actions\/(provision|destroy)@/);
+  assert.doesNotMatch(workflow, /needs\.provision\.outputs\.runner-label/);
+  assert.doesNotMatch(workflow, /environment: production/);
+  assert.doesNotMatch(workflow, /Zeabur|redeployService|\/livez|\/readyz|release=\$\{GITHUB_RUN_ID\}/);
   assert.match(workflow, /Public PR quality gates[\s\S]+runs-on: ubuntu-24\.04/);
   assert.match(workflow, /persist-credentials: false/);
+});
+
+test("production releases are delegated to the Schema contract", () => {
+  const readme = source("README.md");
+
+  assert.match(
+    readme,
+    /Arnon-hs\/atlasrepo-schema\/\.github\/workflows\/release\.yml/,
+  );
 });
 
 test("npm publishing stays on a pinned hosted OIDC workflow", () => {
