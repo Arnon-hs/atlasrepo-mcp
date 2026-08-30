@@ -122,17 +122,20 @@ PORT=8080 MCP_ALLOWED_HOSTS=localhost npm run start:http
 
 Use [.env.example](.env.example) as the non-secret template. Never remove immutable or inherited Zeabur variables.
 
-## Deployment and publishing
+## Verification, deployment and publishing
 
-Every pull request runs one five-stage service release:
+Every pull request runs secret-free hosted quality gates. After merge, the
+trusted `main` workflow runs on one ephemeral JIT runner and performs:
 
-1. **Build** — typecheck, tests, package smoke and Docker build.
-2. **Deploy** — auto-merge after checks; Zeabur observes one `main` commit.
-3. **Migrations** — explicit no-op; MCP owns no database schema.
-4. **Tests** — `/livez`, `/readyz`, `/mcp` transport and read-only tool smoke.
-5. **Cache cleanup** — targeted build/package cache cleanup.
+1. **Build and test** - typecheck, tests, package smoke and dependency audit.
+2. **Image verification** - build and inspect the production Docker image.
 
-Do not manually deploy the same merged commit. npm publication is separate: create a reviewed semantic-version tag and let the trusted-publishing workflow publish the package.
+This repository does not deploy, migrate or probe production from its main
+workflow. Production releases are owned by the pinned contract in
+[`Arnon-hs/atlasrepo-schema/.github/workflows/release.yml`](https://github.com/Arnon-hs/atlasrepo-schema/blob/main/.github/workflows/release.yml),
+which deploys services sequentially and verifies the release. npm publication
+is separate: create a reviewed semantic-version tag and let the
+trusted-publishing workflow publish the package.
 
 ## Engineering rules
 
@@ -148,7 +151,8 @@ Do not manually deploy the same merged commit. npm publication is separate: crea
 - [ ] stdio stdout contains protocol messages only.
 - [ ] HTTP host/origin protections and health contracts remain intact.
 - [ ] No private Platform/Scout logic or write operation was added.
-- [ ] One merge created one MCP service deployment.
+- [ ] The main JIT workflow built and inspected the MCP container image.
+- [ ] Any production release was initiated only from the Schema release contract.
 
 ## License
 
