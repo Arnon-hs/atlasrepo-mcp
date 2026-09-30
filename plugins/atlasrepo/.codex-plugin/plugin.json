@@ -25,6 +25,7 @@
     "category": "Productivity",
     "capabilities": ["Read"],
     "websiteURL": "https://atlasrepo.com",
+    "supportURL": "https://github.com/Arnon-hs/atlasrepo-mcp/issues",
     "privacyPolicyURL": "https://atlasrepo.com/legal?doc=privacy&lang=en",
     "termsOfServiceURL": "https://atlasrepo.com/legal?doc=terms&lang=en",
     "defaultPrompt": [
@@ -32,6 +33,67 @@
       "Compare repositories for this implementation.",
       "Show evidence for the best matching repo."
     ],
-    "brandColor": "#111827"
+    "brandColor": "#111827",
+    "composerIcon": "./assets/atlasrepo-mark.svg",
+    "logo": "./assets/atlasrepo-mark.svg"
+  },
+  "extensions": {
+    "com.openai": {
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Recommend a bounded semantic-search shortlist",
+              "prompt": "Find open-source options for semantic search over product documentation and PostgreSQL. Return at most 8 AtlasRepo results and preserve their source evidence.",
+              "tools_triggered": "atlasrepo_recommend",
+              "expected_behavior": "Call atlasrepo_recommend once with a concrete query and limit 8; return only the public AtlasRepo stories in the tool result, without inventing repositories or implementation claims."
+            },
+            {
+              "description": "Recommend a bounded content-production shortlist",
+              "prompt": "Find open-source options for a vertical-video production workflow. Return at most 5 AtlasRepo results.",
+              "tools_triggered": "atlasrepo_recommend",
+              "expected_behavior": "Call atlasrepo_recommend once with limit 5; return the bounded public AtlasRepo result or explicitly say that the catalog has no match."
+            },
+            {
+              "description": "Search tools with an exact quality threshold",
+              "prompt": "Search AtlasRepo for video tools with normalized quality at least 0.7.",
+              "tools_triggered": "atlasrepo_search_tools",
+              "expected_behavior": "Call atlasrepo_search_tools with q set to video and minQuality set to 0.7; return only the matching tool records supplied by AtlasRepo."
+            },
+            {
+              "description": "Read one known repository evidence record",
+              "prompt": "Show the AtlasRepo decision record for MCPJam/inspector and its linked evidence.",
+              "tools_triggered": "atlasrepo_get_repository",
+              "expected_behavior": "Call atlasrepo_get_repository with owner MCPJam and name inspector; return the AtlasRepo record with the canonical GitHub URL and linkedStories array."
+            },
+            {
+              "description": "Return a precise missing-record error",
+              "prompt": "Show the AtlasRepo decision record for atlasrepo-review-fixture/not-present-20260930.",
+              "tools_triggered": "atlasrepo_get_repository",
+              "expected_behavior": "Call atlasrepo_get_repository once and return the structured not-found error from AtlasRepo; do not substitute a similarly named repository."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Do not invoke for calendar access",
+              "prompt": "What meetings do I have tomorrow?"
+            },
+            {
+              "description": "Do not invoke for repository mutation",
+              "prompt": "Merge my pull request and delete its branch."
+            },
+            {
+              "description": "Do not invoke for unrelated rewriting",
+              "prompt": "Rewrite this paragraph in a friendlier tone."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "AtlasRepo tools retrieve read-only catalog data and do not sell products or process payments."
+      },
+      "publication": {
+        "release_notes": "Store-readiness update with deterministic review cases, bounded structured results, precise errors, and remote Streamable HTTP configuration."
+      }
+    }
   }
 }

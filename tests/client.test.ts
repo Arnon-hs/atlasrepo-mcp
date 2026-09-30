@@ -74,8 +74,27 @@ test("API failures expose status but not response bodies", async () => {
   await assert.rejects(client.searchTools({ q: "test" }), (error: unknown) => {
     assert.ok(error instanceof AtlasRepoApiError);
     assert.equal(error.status, 503);
+    assert.equal(error.code, "upstream_error");
     assert.equal(error.message, "AtlasRepo API returned 503 Unavailable");
     assert.equal(error.message.includes("internal secret"), false);
+    return true;
+  });
+});
+
+test("API failures preserve only safe machine-readable error and retry metadata", async () => {
+  const client = new AtlasRepoClient({
+    fetchImpl: async () => new Response(JSON.stringify({ error: "rate_limited", detail: "private diagnostic" }), {
+      status: 429,
+      statusText: "Too Many Requests",
+      headers: { "content-type": "application/json", "retry-after": "12" },
+    }),
+  });
+
+  await assert.rejects(client.searchTools({ q: "test" }), (error: unknown) => {
+    assert.ok(error instanceof AtlasRepoApiError);
+    assert.equal(error.code, "rate_limited");
+    assert.equal(error.retryAfterSeconds, 12);
+    assert.equal(error.message.includes("private diagnostic"), false);
     return true;
   });
 });

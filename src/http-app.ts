@@ -38,7 +38,7 @@ export function createAtlasRepoHttpApp(env: NodeJS.ProcessEnv = process.env) {
   });
 
   app.post("/mcp", async (request, response) => {
-    const server = createAtlasRepoMcpServer(clientFromEnvironment());
+    const server = createAtlasRepoMcpServer(clientFromEnvironment(env));
     const transport = new StreamableHTTPServerTransport();
 
     response.on("close", () => {

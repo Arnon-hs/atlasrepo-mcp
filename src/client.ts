@@ -22,7 +22,12 @@ export interface ToolQuery {
 }
 
 export class AtlasRepoApiError extends Error {
-  constructor(message: string, readonly status?: number) {
+  constructor(
+    message: string,
+    readonly status?: number,
+    readonly code = "upstream_error",
+    readonly retryAfterSeconds?: number,
+  ) {
     super(message);
     this.name = "AtlasRepoApiError";
   }
@@ -82,9 +87,17 @@ export class AtlasRepoClient {
     }
 
     if (!response.ok) {
+      const retryAfter = Number.parseInt(response.headers.get("retry-after") ?? "", 10);
+      let code = "upstream_error";
+      if (response.headers.get("content-type")?.includes("application/json")) {
+        const payload = await response.json().catch(() => null) as { error?: unknown } | null;
+        if (typeof payload?.error === "string" && /^[a-z0-9_]{1,80}$/.test(payload.error)) code = payload.error;
+      }
       throw new AtlasRepoApiError(
         `AtlasRepo API returned ${response.status} ${response.statusText}`,
         response.status,
+        code,
+        Number.isFinite(retryAfter) && retryAfter >= 0 ? retryAfter : undefined,
       );
     }
 

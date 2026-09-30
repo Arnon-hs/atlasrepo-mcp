@@ -19,6 +19,7 @@
     "start:http": "node dist/http.js",
     "smoke": "node scripts/smoke.mjs",
     "smoke:package": "node scripts/smoke-package.mjs",
+    "readiness:store": "npm run check && npm test && npm run build && npm run smoke && npm run smoke:package",
     "test": "node --test --import tsx tests/**/*.test.ts"
   },
   "engines": {
