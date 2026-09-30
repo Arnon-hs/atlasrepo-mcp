@@ -57,44 +57,13 @@ All inputs are schema-validated. Upstream calls have a timeout and responses are
 
 ## Install in one command
 
-The public tools work through the anonymous free fallback. `ATLASREPO_API_KEY` is optional and should only be added through the client's environment when account limits or private features are needed.
-
-Codex:
-
-```bash
-codex mcp add atlasrepo -- npx -y atlasrepo-mcp
-```
-
-Claude Code:
-
-```bash
-claude mcp add atlasrepo -- npx -y atlasrepo-mcp
-```
-
-Other stdio MCP clients can launch the published package with `npx -y atlasrepo-mcp` and the hosted Streamable HTTP endpoint is `https://mcp.atlasrepo.com/mcp`.
-
-### Full Codex plugin
-
-The repository also ships a validated Codex plugin bundle. Add its marketplace once, then install the plugin:
+Install the AtlasRepo plugin for Codex with the same command shown in the AtlasRepo account:
 
 ```bash
 codex plugin marketplace add Arnon-hs/atlasrepo-mcp && codex plugin add atlasrepo@atlasrepo
 ```
 
-The plugin uses the same published npm executable. The first command is no longer needed after the AtlasRepo marketplace has been configured.
-
-### Generic MCP client configuration
-
-```json
-{
-  "mcpServers": {
-    "atlasrepo": {
-      "command": "npx",
-      "args": ["-y", "atlasrepo-mcp"]
-    }
-  }
-}
-```
+The plugin connects to the hosted Streamable HTTP service at `https://mcp.atlasrepo.com/mcp`. The public catalog tools are read-only; account quota and connected OAuth clients are shown in the AtlasRepo API connections panel.
 
 ## Local development
 
@@ -103,6 +72,7 @@ npm ci
 npm run check
 npm test
 npm run build
+npm run readiness:store
 node dist/index.js
 ```
 

@@ -2,49 +2,42 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
 import { AtlasRepoApiError, AtlasRepoClient } from "./client.js";
+import { recommendResultSchema, searchToolsResultSchema, repositoryResultSchema } from "./output-schemas.js";
 
 const MAX_RESULT_CHARS = 40_000;
 
-const recordSchema = z.record(z.string(), z.unknown());
+const recommendOutputSchema = recommendResultSchema.shape;
+const searchToolsOutputSchema = searchToolsResultSchema.shape;
+const repositoryOutputSchema = repositoryResultSchema.shape;
 
-const recommendOutputSchema = {
-  stories: z.array(recordSchema).describe("Evidence-backed AtlasRepo recommendation records"),
-  access: z.string().describe("Access tier used for this response"),
-};
-
-const searchToolsOutputSchema = {
-  tools: z.array(recordSchema).describe("Normalized open-source tool records"),
-  access: z.string().describe("Access tier used for this response"),
-};
-
-const repositoryOutputSchema = {
-  repo: recordSchema.describe("AtlasRepo repository decision record"),
-  linkedStories: z.array(recordSchema).describe("Published stories linked to the repository"),
-  access: z.string().describe("Access tier used for this response"),
-};
-
-function toolResult(value: unknown) {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    return toolError(new Error("AtlasRepo API returned an invalid result shape"));
+function toolResult(value: unknown, schema: z.ZodType<Record<string, unknown>>) {
+  const parsed = schema.safeParse(value);
+  if (!parsed.success) {
+    return toolError(new AtlasRepoApiError("AtlasRepo API returned an invalid result shape", 502, "invalid_upstream_shape"));
   }
 
-  const serialized = JSON.stringify(value, null, 2);
-  const text = serialized.length <= MAX_RESULT_CHARS
-    ? serialized
-    : `${serialized.slice(0, MAX_RESULT_CHARS)}\n... response truncated by AtlasRepo MCP`;
+  const serialized = JSON.stringify(parsed.data, null, 2);
+  if (serialized.length > MAX_RESULT_CHARS) {
+    return toolError(new AtlasRepoApiError("AtlasRepo API result exceeded the connector response limit", 502, "result_too_large"));
+  }
   return {
-    content: [{ type: "text" as const, text }],
-    structuredContent: value as Record<string, unknown>,
+    content: [{ type: "text" as const, text: serialized }],
+    structuredContent: parsed.data,
   };
 }
 
 function toolError(error: unknown) {
-  const message = error instanceof AtlasRepoApiError
-    ? error.message
-    : "AtlasRepo connector failed unexpectedly";
+  const payload = error instanceof AtlasRepoApiError
+    ? {
+        error: error.code,
+        message: error.message,
+        ...(error.status ? { status: error.status } : {}),
+        ...(error.retryAfterSeconds !== undefined ? { retryAfterSeconds: error.retryAfterSeconds } : {}),
+      }
+    : { error: "connector_error", message: "AtlasRepo connector failed unexpectedly" };
   return {
     isError: true,
-    content: [{ type: "text" as const, text: message }],
+    content: [{ type: "text" as const, text: JSON.stringify(payload) }],
   };
 }
 
@@ -55,22 +48,22 @@ export function createAtlasRepoMcpServer(client: AtlasRepoClient): McpServer {
     "atlasrepo_recommend",
     {
       title: "Recommend open-source solutions",
-      description: "Find evidence-backed repositories and workflows for a concrete engineering or content-production problem.",
+      description: "Use for a concrete engineering or content-production problem that needs evidence-backed repository or workflow options from the public AtlasRepo catalog. This read-only tool does not execute or modify repositories.",
       inputSchema: {
         query: z.string().trim().min(3).max(1_000).describe("Problem or outcome to solve"),
-        limit: z.number().int().min(1).max(20).default(8).describe("Maximum recommendations"),
+        limit: z.number().int().min(1).max(10).default(8).describe("Maximum recommendations"),
       },
       outputSchema: recommendOutputSchema,
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
         idempotentHint: true,
-        openWorldHint: false,
+        openWorldHint: true,
       },
     },
     async ({ query, limit }) => {
       try {
-        return toolResult(await client.recommend({ query, limit }));
+        return toolResult(await client.recommend({ query, limit }), recommendResultSchema);
       } catch (error) {
         return toolError(error);
       }
@@ -81,7 +74,7 @@ export function createAtlasRepoMcpServer(client: AtlasRepoClient): McpServer {
     "atlasrepo_search_tools",
     {
       title: "Search AtlasRepo tools",
-      description: "Search normalized open-source tools by text, kind, and quality threshold.",
+      description: "Use to search public AtlasRepo tool records by text, kind, or normalized quality threshold. This read-only tool returns catalog records and does not install or run them.",
       inputSchema: {
         q: z.string().trim().max(300).optional().describe("Free-text search"),
         kind: z.string().trim().max(100).optional().describe("Tool kind or category"),
@@ -92,12 +85,12 @@ export function createAtlasRepoMcpServer(client: AtlasRepoClient): McpServer {
         readOnlyHint: true,
         destructiveHint: false,
         idempotentHint: true,
-        openWorldHint: false,
+        openWorldHint: true,
       },
     },
     async (input) => {
       try {
-        return toolResult(await client.searchTools(input));
+        return toolResult(await client.searchTools(input), searchToolsResultSchema);
       } catch (error) {
         return toolError(error);
       }
@@ -108,22 +101,22 @@ export function createAtlasRepoMcpServer(client: AtlasRepoClient): McpServer {
     "atlasrepo_get_repository",
     {
       title: "Get AtlasRepo repository evidence",
-      description: "Load the AtlasRepo decision record and linked evidence for one GitHub repository.",
+      description: "Use when the user names one GitHub owner and repository and wants its public AtlasRepo decision record and linked evidence. This read-only tool returns not found when the catalog has no matching record.",
       inputSchema: {
-        owner: z.string().trim().min(1).max(100).regex(/^[A-Za-z0-9_.-]+$/),
-        name: z.string().trim().min(1).max(100).regex(/^[A-Za-z0-9_.-]+$/),
+        owner: z.string().trim().min(1).max(100).regex(/^[A-Za-z0-9_.-]+$/).refine(value => value !== "." && value !== ".."),
+        name: z.string().trim().min(1).max(100).regex(/^[A-Za-z0-9_.-]+$/).refine(value => value !== "." && value !== ".."),
       },
       outputSchema: repositoryOutputSchema,
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
         idempotentHint: true,
-        openWorldHint: false,
+        openWorldHint: true,
       },
     },
     async ({ owner, name }) => {
       try {
-        return toolResult(await client.getRepository(owner, name));
+        return toolResult(await client.getRepository(owner, name), repositoryResultSchema);
       } catch (error) {
         return toolError(error);
       }

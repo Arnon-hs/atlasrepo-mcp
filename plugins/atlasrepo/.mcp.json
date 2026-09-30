@@ -1,11 +1,7 @@
 {
   "mcpServers": {
     "atlasrepo": {
-      "command": "npx",
-      "args": ["-y", "atlasrepo-mcp"],
-      "env": {
-        "ATLASREPO_API_BASE_URL": "https://api.atlasrepo.com"
-      }
+      "url": "https://mcp.atlasrepo.com/mcp"
     }
   }
 }
