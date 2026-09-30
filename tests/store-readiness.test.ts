@@ -12,20 +12,21 @@ const semanticStory = {
   id: "story_semantic_postgres",
   slug: "semantic-search-postgres",
   title: "Semantic search over PostgreSQL documentation",
-  sourceUrl: "https://atlasrepo.com/stories/semantic-search-postgres",
+  sourceUrls: ["https://github.com/pgvector/pgvector"],
 };
 const videoStory = {
   id: "story_vertical_video",
   slug: "vertical-video-workflow",
   title: "Vertical video production workflow",
-  sourceUrl: "https://atlasrepo.com/stories/vertical-video-workflow",
+  sourceUrls: ["https://github.com/FFmpeg/FFmpeg"],
 };
 const videoTool = {
   id: "tool_ffmpeg",
+  slug: "ffmpeg",
   name: "FFmpeg",
   kind: "video",
-  quality: 0.92,
-  sourceUrl: "https://github.com/FFmpeg/FFmpeg",
+  qualityScore: 0.92,
+  repoUrl: "https://github.com/FFmpeg/FFmpeg",
 };
 const repositoryResult = {
   repo: {
@@ -42,12 +43,16 @@ const repositoryResult = {
 const fixtureFetch: typeof fetch = async (input, init) => {
   const url = new URL(String(input));
   if (url.pathname === "/api/recommendations") {
-    const body = JSON.parse(String(init?.body || "{}")) as { query?: string };
-    const stories = body.query?.includes("vertical-video") ? [videoStory] : [semanticStory];
+    const body = JSON.parse(String(init?.body || "{}")) as { query?: string; limit?: number };
+    const stories = (body.query?.includes("vertical-video") ? [videoStory]
+      : body.query?.includes("semantic search") ? [semanticStory] : []).slice(0, body.limit ?? 8);
     return Response.json({ stories, access: "anonymous" });
   }
   if (url.pathname === "/api/tools") {
-    return Response.json({ tools: [videoTool], access: "anonymous" });
+    const matches = (!url.searchParams.get("q") || "ffmpeg video".includes(url.searchParams.get("q")!)) &&
+      (!url.searchParams.get("kind") || url.searchParams.get("kind") === videoTool.kind) &&
+      Number(url.searchParams.get("minQuality") ?? 0) <= videoTool.qualityScore;
+    return Response.json({ tools: matches ? [videoTool] : [], access: "anonymous" });
   }
   if (url.pathname === "/api/repos/MCPJam/inspector") {
     return Response.json(repositoryResult);
@@ -66,7 +71,7 @@ const textPayload = (result: unknown): Record<string, unknown> => {
   return JSON.parse(content.text || "{}") as Record<string, unknown>;
 };
 
-test("five positive review scenarios have exact deterministic MCP outcomes", async (context) => {
+test("five adapter fixture scenarios have exact outcomes (not live ranking or model-selection proof)", async (context) => {
   const server = createAtlasRepoMcpServer(new AtlasRepoClient({ baseUrl: "https://fixture.invalid", fetchImpl: fixtureFetch }));
   const client = new Client({ name: "atlasrepo-store-readiness", version: "1.0.1" });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
@@ -105,9 +110,14 @@ test("five positive review scenarios have exact deterministic MCP outcomes", asy
   assert.equal(missing.isError, true);
   assert.deepEqual(textPayload(missing), {
     error: "repo_not_found",
-    message: "AtlasRepo API returned 404 Not Found",
+    message: "AtlasRepo API returned HTTP 404",
     status: 404,
   });
+
+  const unmatched = await client.callTool({ name: "atlasrepo_recommend", arguments: { query: "absent-fixture-topic" } });
+  assert.deepEqual(unmatched.structuredContent, { stories: [], access: "anonymous" });
+  const filtered = await client.callTool({ name: "atlasrepo_search_tools", arguments: { q: "video", minQuality: 0.99 } });
+  assert.deepEqual(filtered.structuredContent, { tools: [], access: "anonymous" });
 });
 
 test("review manifest contains five positive and three negative cases with precise tool expectations", async () => {

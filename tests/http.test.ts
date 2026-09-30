@@ -70,7 +70,7 @@ test("domain verification challenge is unavailable without a configured token", 
 
 test("tool calls return structured content matching the declared output schema", async (context) => {
   const upstreamResult = {
-    tools: [{ id: "tool_example", name: "example/project", kind: "github_repo" }],
+    tools: [{ id: "tool_example", slug: "example-project", name: "example/project", kind: "github_repo" }],
     access: "anonymous",
   };
   const atlasRepoClient = new AtlasRepoClient({
@@ -127,7 +127,7 @@ test("HTTP app uses its injected upstream environment", async (context) => {
 test("oversized structured results fail closed instead of bypassing the text limit", async (context) => {
   const atlasRepoClient = new AtlasRepoClient({
     fetchImpl: async () => new Response(JSON.stringify({
-      tools: [{ id: "large", description: "x".repeat(45_000) }],
+      tools: Array.from({ length: 100 }, (_, index) => ({ id: String(index), slug: String(index), name: "x".repeat(500), kind: "test" })),
       access: "anonymous",
     }), { status: 200, headers: { "content-type": "application/json" } }),
   });

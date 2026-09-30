@@ -1,5 +1,6 @@
 const DEFAULT_BASE_URL = "https://api.atlasrepo.com";
 const DEFAULT_TIMEOUT_MS = 15_000;
+export const MAX_RESPONSE_BYTES = 128 * 1024;
 
 type Fetch = typeof fetch;
 
@@ -63,6 +64,9 @@ export class AtlasRepoClient {
   }
 
   getRepository(owner: string, name: string): Promise<unknown> {
+    if ([owner, name].some(value => value === "." || value === "..")) {
+      return Promise.reject(new AtlasRepoApiError("Invalid repository identity", 400, "invalid_input"));
+    }
     const path = `api/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`;
     return this.request(path);
   }
@@ -74,39 +78,70 @@ export class AtlasRepoClient {
     if (init.body) headers.set("content-type", "application/json");
     if (this.apiKey) headers.set("authorization", `Bearer ${this.apiKey}`);
 
-    let response: Response;
+    const signal = AbortSignal.timeout(this.timeoutMs);
     try {
-      response = await this.fetchImpl(url, {
+      const response = await this.fetchImpl(url, {
         ...init,
         headers,
-        signal: AbortSignal.timeout(this.timeoutMs),
+        signal,
+        // A redirect must never carry caller credentials to another endpoint.
+        redirect: "error",
       });
-    } catch (error) {
-      const reason = error instanceof Error ? error.message : "network error";
-      throw new AtlasRepoApiError(`AtlasRepo request failed: ${reason}`);
-    }
 
-    if (!response.ok) {
-      const retryAfter = Number.parseInt(response.headers.get("retry-after") ?? "", 10);
-      let code = "upstream_error";
-      if (response.headers.get("content-type")?.includes("application/json")) {
-        const payload = await response.json().catch(() => null) as { error?: unknown } | null;
-        if (typeof payload?.error === "string" && /^[a-z0-9_]{1,80}$/.test(payload.error)) code = payload.error;
+      if (!response.ok) {
+        // Neither bodies nor statusText are trusted error messages/codes. Do not
+        // read error bodies at all (they may be unbounded or contain secrets).
+        void response.body?.cancel().catch(() => undefined);
+        const rawRetry = response.headers.get("retry-after") ?? "";
+        const retry = /^\d{1,7}$/.test(rawRetry) ? Number(rawRetry) : undefined;
+        const code = response.status === 401 ? "unauthorized"
+          : response.status === 403 ? "forbidden"
+          : response.status === 429 ? "rate_limited"
+          : response.status === 404 ? (url.pathname.includes("/api/repos/") ? "repo_not_found" : "not_found")
+          : "upstream_error";
+        throw new AtlasRepoApiError(`AtlasRepo API returned HTTP ${response.status}`, response.status, code,
+          response.status === 429 && retry !== undefined && retry <= 86400 ? retry : undefined);
       }
-      throw new AtlasRepoApiError(
-        `AtlasRepo API returned ${response.status} ${response.statusText}`,
-        response.status,
-        code,
-        Number.isFinite(retryAfter) && retryAfter >= 0 ? retryAfter : undefined,
-      );
-    }
 
-    const contentType = response.headers.get("content-type") ?? "";
-    if (!contentType.includes("application/json")) {
-      throw new AtlasRepoApiError("AtlasRepo API returned a non-JSON response", response.status);
+      if (!/^application\/json(?:\s*;|$)/i.test(response.headers.get("content-type") ?? "")) {
+        void response.body?.cancel().catch(() => undefined);
+        throw new AtlasRepoApiError("AtlasRepo API returned a non-JSON response", 502, "invalid_upstream_shape");
+      }
+      const reader = response.body?.getReader();
+      if (!reader) throw new AtlasRepoApiError("AtlasRepo API returned an invalid result shape", 502, "invalid_upstream_shape");
+      let abortHandler: (() => void) | undefined;
+      const aborted = new Promise<never>((_resolve, reject) => {
+        abortHandler = () => reject(new AtlasRepoApiError("AtlasRepo request timed out", 504, "upstream_timeout"));
+        if (signal.aborted) abortHandler();
+        else signal.addEventListener("abort", abortHandler, { once: true });
+      });
+      const chunks: Uint8Array[] = [];
+      let bytes = 0;
+      try {
+        while (true) {
+          const { value, done } = await Promise.race([reader.read(), aborted]);
+          if (done) break;
+          bytes += value.byteLength;
+          if (bytes > MAX_RESPONSE_BYTES) {
+            throw new AtlasRepoApiError("AtlasRepo API result exceeded the connector response limit", 502, "result_too_large");
+          }
+          chunks.push(value);
+        }
+      } finally {
+        if (abortHandler) signal.removeEventListener("abort", abortHandler);
+        void reader.cancel().catch(() => undefined);
+      }
+      try {
+        return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+      } catch {
+        throw new AtlasRepoApiError("AtlasRepo API returned an invalid result shape", 502, "invalid_upstream_shape");
+      }
+    } catch (error) {
+      if (error instanceof AtlasRepoApiError) throw error;
+      throw signal.aborted
+        ? new AtlasRepoApiError("AtlasRepo request timed out", 504, "upstream_timeout")
+        : new AtlasRepoApiError("AtlasRepo request failed", 502, "upstream_unavailable");
     }
-
-    return response.json();
   }
 }
 

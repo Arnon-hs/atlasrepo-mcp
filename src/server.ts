@@ -2,29 +2,12 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
 import { AtlasRepoApiError, AtlasRepoClient } from "./client.js";
+import { recommendResultSchema, searchToolsResultSchema, repositoryResultSchema } from "./output-schemas.js";
 
 const MAX_RESULT_CHARS = 40_000;
 
-const recordSchema = z.record(z.string(), z.unknown());
-
-const recommendResultSchema = z.object({
-  stories: z.array(recordSchema).describe("Evidence-backed AtlasRepo recommendation records"),
-  access: z.string().describe("Access tier used for this response"),
-});
 const recommendOutputSchema = recommendResultSchema.shape;
-
-const searchToolsResultSchema = z.object({
-  tools: z.array(recordSchema).describe("Normalized open-source tool records"),
-  access: z.string().describe("Access tier used for this response"),
-});
 const searchToolsOutputSchema = searchToolsResultSchema.shape;
-
-const repositoryResultSchema = z.object({
-  repo: recordSchema.describe("AtlasRepo repository decision record"),
-  linkedStories: z.array(recordSchema).describe("Published stories linked to the repository"),
-  solutionReview: recordSchema.nullable().optional().describe("Evidence-backed AtlasRepo solution review when available"),
-  access: z.string().describe("Access tier used for this response"),
-});
 const repositoryOutputSchema = repositoryResultSchema.shape;
 
 function toolResult(value: unknown, schema: z.ZodType<Record<string, unknown>>) {
@@ -68,7 +51,7 @@ export function createAtlasRepoMcpServer(client: AtlasRepoClient): McpServer {
       description: "Use for a concrete engineering or content-production problem that needs evidence-backed repository or workflow options from the public AtlasRepo catalog. This read-only tool does not execute or modify repositories.",
       inputSchema: {
         query: z.string().trim().min(3).max(1_000).describe("Problem or outcome to solve"),
-        limit: z.number().int().min(1).max(20).default(8).describe("Maximum recommendations"),
+        limit: z.number().int().min(1).max(10).default(8).describe("Maximum recommendations"),
       },
       outputSchema: recommendOutputSchema,
       annotations: {
@@ -120,8 +103,8 @@ export function createAtlasRepoMcpServer(client: AtlasRepoClient): McpServer {
       title: "Get AtlasRepo repository evidence",
       description: "Use when the user names one GitHub owner and repository and wants its public AtlasRepo decision record and linked evidence. This read-only tool returns not found when the catalog has no matching record.",
       inputSchema: {
-        owner: z.string().trim().min(1).max(100).regex(/^[A-Za-z0-9_.-]+$/),
-        name: z.string().trim().min(1).max(100).regex(/^[A-Za-z0-9_.-]+$/),
+        owner: z.string().trim().min(1).max(100).regex(/^[A-Za-z0-9_.-]+$/).refine(value => value !== "." && value !== ".."),
+        name: z.string().trim().min(1).max(100).regex(/^[A-Za-z0-9_.-]+$/).refine(value => value !== "." && value !== ".."),
       },
       outputSchema: repositoryOutputSchema,
       annotations: {

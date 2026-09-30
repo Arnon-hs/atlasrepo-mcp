@@ -51,9 +51,8 @@ export function createAtlasRepoHttpApp(env: NodeJS.ProcessEnv = process.env) {
       // its exactOptionalPropertyTypes declaration mismatch.
       await server.connect(transport as Parameters<typeof server.connect>[0]);
       await transport.handleRequest(request, response, request.body);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "unknown MCP request error";
-      process.stderr.write(`AtlasRepo HTTP MCP request failed: ${message}\n`);
+    } catch {
+      process.stderr.write("AtlasRepo HTTP MCP request failed\n");
       if (!response.headersSent) {
         response.status(500).json({
           jsonrpc: "2.0",
