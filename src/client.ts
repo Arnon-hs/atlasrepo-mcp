@@ -5,6 +5,7 @@ export const MAX_RESPONSE_BYTES = 128 * 1024;
 type Fetch = typeof fetch;
 
 export interface AtlasRepoClientOptions {
+  resourceMode?: boolean;
   baseUrl?: string;
   apiKey?: string;
   timeoutMs?: number;
@@ -35,12 +36,14 @@ export class AtlasRepoApiError extends Error {
 }
 
 export class AtlasRepoClient {
+  private readonly resourceMode: boolean;
   readonly baseUrl: URL;
   private readonly apiKey: string | undefined;
   private readonly timeoutMs: number;
   private readonly fetchImpl: Fetch;
 
   constructor(options: AtlasRepoClientOptions = {}) {
+    this.resourceMode = options.resourceMode ?? false;
     const baseUrl = options.baseUrl ?? DEFAULT_BASE_URL;
     this.baseUrl = new URL(baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`);
     this.apiKey = options.apiKey;
@@ -49,6 +52,7 @@ export class AtlasRepoClient {
   }
 
   recommend(input: RecommendationQuery): Promise<unknown> {
+    if (this.resourceMode) return this.invoke("atlasrepo_recommend", input);
     return this.request("api/recommendations", {
       method: "POST",
       body: JSON.stringify(input),
@@ -56,6 +60,7 @@ export class AtlasRepoClient {
   }
 
   searchTools(input: ToolQuery): Promise<unknown> {
+    if (this.resourceMode) return this.invoke("atlasrepo_search_tools", input);
     const url = new URL("api/tools", this.baseUrl);
     if (input.q) url.searchParams.set("q", input.q);
     if (input.kind) url.searchParams.set("kind", input.kind);
@@ -68,7 +73,22 @@ export class AtlasRepoClient {
       return Promise.reject(new AtlasRepoApiError("Invalid repository identity", 400, "invalid_input"));
     }
     const path = `api/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`;
+    if (this.resourceMode) return this.invoke("atlasrepo_get_repository", { owner, name }).catch(error => {
+      if (error instanceof AtlasRepoApiError && error.status === 404) throw new AtlasRepoApiError("Repository not found", 404, "repo_not_found");
+      throw error;
+    });
     return this.request(path);
+  }
+
+  async validateAccess(): Promise<void> {
+    const result = await this.request("api/mcp/resource/access") as { resource?: unknown } | null;
+    if (result?.resource !== "https://mcp.atlasrepo.com/mcp") {
+      throw new AtlasRepoApiError("Invalid resource response", 502, "invalid_upstream_shape");
+    }
+  }
+
+  private invoke(tool: string, args: unknown): Promise<unknown> {
+    return this.request("api/mcp/resource/invoke", { method: "POST", body: JSON.stringify({ tool, arguments: args }) });
   }
 
   private async request(pathOrUrl: string | URL, init: RequestInit = {}): Promise<unknown> {
@@ -155,5 +175,16 @@ export function clientFromEnvironment(env: NodeJS.ProcessEnv = process.env): Atl
     baseUrl: env.ATLASREPO_API_BASE_URL ?? DEFAULT_BASE_URL,
     timeoutMs,
     ...(env.ATLASREPO_API_KEY ? { apiKey: env.ATLASREPO_API_KEY } : {}),
+  });
+}
+
+// The HTTP resource uses only the caller's credential. Server-side API keys are
+// a STDIO option and must never impersonate an HTTP caller.
+export function resourceClient(env: NodeJS.ProcessEnv, token?: string): AtlasRepoClient {
+  const timeout = Number(env.ATLASREPO_REQUEST_TIMEOUT_MS ?? DEFAULT_TIMEOUT_MS);
+  return new AtlasRepoClient({ resourceMode: true,
+    baseUrl: env.ATLASREPO_API_BASE_URL ?? DEFAULT_BASE_URL,
+    timeoutMs: Number.isFinite(timeout) && timeout > 0 ? timeout : DEFAULT_TIMEOUT_MS,
+    ...(token ? { apiKey: token } : {}),
   });
 }
