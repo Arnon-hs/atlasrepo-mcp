@@ -6,9 +6,28 @@ This report records reproducible evidence for AtlasRepo MCP and the Codex plugin
 
 ## Evidence boundaries
 
-- The supplied task history says AtlasRepo plugin v1.0.0 was rejected on September 6 because MCP test cases returned incorrect results, and identity case `13666371` was resolved on August 27. The exact email, year and prompts have not been independently verified.
-- The exact rejection email and exact failing prompts are not present in this repository. Do not describe the five cases below as the original reviewer cases.
+- Parent verified the September 6 rejection email for AtlasRepo v1.0.0. Its only specific reason was incorrect results in one or more submitted test cases. It requests rerunning all submitted cases, aligning actual behavior/output with documented expectations, and consistent ChatGPT web/mobile behavior. The email supplies no failed case IDs, inputs, logs, examples or attachments. This worker received the verified contents from parent, not a direct mailbox read.
+- The task history separately reports identity case `13666371` resolved on August 27. That is not evidence identifying a failed MCP case.
+- Auth/no-match defects found here are candidate defects, NOT proven causes of that rejection. The five new fixture cases below are not the original reviewer cases.
 - Repository evidence did show a legacy review case for `octocat/Hello-World` whose expected result allowed either success or not-found. That ambiguous case has been replaced with deterministic known and explicitly missing fixtures.
+
+### Recovered pre-review repository candidate
+
+The full local Git history contains a [submission manifest at the September 5 release marker](https://github.com/Arnon-hs/atlasrepo-mcp/blob/36a0effa031e564a0c422d3ddc771fbef54e8782/chatgpt-app-submission.json).
+Its blob is unchanged from the pre-readiness-pass manifest. It contains five
+positive prompts: semantic search with PostgreSQL; vertical-video orchestration;
+video tools with quality at least 0.7; orchestration-category tools without a text
+query; and `octocat/Hello-World` evidence. Three negative prompts concern calendars,
+merging/deleting a GitHub branch, and unrelated prose rewriting.
+
+These are historical repository candidates, not a verified publisher export. The
+rejected app ID was not found in available local Git history, and the repository
+plugin version was 0.1.2, not the rejected Store version 1.0.0. Therefore neither
+submission membership nor failed-case identity is established by Git alone.
+Preserve and rerun all eight historical candidates after integration; in particular
+the category-only scenario must not disappear when adding new known/missing repo
+cases. Model tool selection and web/mobile consistency still require actual client
+runs; a manifest metadata assertion or deterministic fixture does not prove them.
 
 ## Current official requirements consulted
 
@@ -110,6 +129,6 @@ These items require a coordinated staging/production release and therefore remai
 3. Connect the deployed plugin in each supported ChatGPT/Codex surface and verify stable desktop and mobile outputs.
 4. Confirm OAuth consent, insufficient scope, expired access token, refresh-token expiry/revocation, owner isolation, and rate-limit reset behavior with dedicated non-production accounts.
 5. Record and host the required reviewer walkthrough video; no review-video URL is present yet.
-6. Reconcile the exact previous rejection email/test prompts if supplied, then add regression fixtures without guessing.
+6. Compare the recovered historical manifest with an authorized read-only publisher export of the submitted v1.0.0 cases, if available. The verified rejection email contains no prompts. Rerun the complete confirmed submitted set and preserve traces without inventing reviewer case IDs or a root cause.
 7. Re-run the live domain-verification and manifest rescan required by the submission UI.
 8. Obtain explicit authorization before submitting or publishing. Passing this local suite does not imply OpenAI approval.
