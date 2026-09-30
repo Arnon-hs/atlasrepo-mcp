@@ -1,6 +1,6 @@
 # OpenAI Store readiness — 2026-09-30
 
-Status: **NOT READY. Security review found release blockers; local adapter fixes are only partial remediation. Not submitted or approved.**
+Updated 2026-10-01. Status: **NOT READY FOR SUBMISSION. Canonical auth/shared quota fixes pass local PostgreSQL E2E; browser OAuth onboarding, semantic integration and actual ChatGPT client evidence remain blockers. Not submitted or approved.**
 
 This report records reproducible evidence for AtlasRepo MCP and the Codex plugin bundle. It does not authorize a deployment, Store submission, or publication.
 
@@ -36,6 +36,7 @@ runs; a manifest metadata assertion or deterministic fixture does not prove them
 - [Submission workflow](https://developers.openai.com/plugins/deploy/submission)
 - [Plugin guidelines](https://developers.openai.com/plugins/plugin-guidelines)
 - [Security and privacy](https://developers.openai.com/plugins/guides/security-privacy)
+- [Authentication](https://developers.openai.com/plugins/build/auth), checked again 2026-10-01: resource metadata belongs on the MCP origin, the authorization-server issuer must match discovery, and credentials require audience/scope/expiry checks. Existing DCR support is retained; this pass does not advertise unsupported CIMD or broaden scopes.
 
 The following requirements are review targets, NOT a list of passing gates:
 
@@ -80,14 +81,14 @@ npm audit --omit=dev
 
 `npm run readiness:store` runs TypeScript checking, all deterministic tests, production build, protocol smoke, and packed-package smoke. The HTTP tests need permission to bind an ephemeral loopback port.
 
-Local result on 2026-09-30:
+Local result updated 2026-10-01:
 
 - TypeScript check: passed.
-- MCP follow-up tests: 29 passed, 0 failed (including 9 new boundary/stream/input tests).
+- MCP follow-up tests: 30 passed, 0 failed, including caller binding/discovery and boundary/stream/input tests.
 - Build, protocol smoke, and packed-package smoke: passed.
 - `npm audit --omit=dev`: 0 vulnerabilities after compatible transitive lockfile updates.
-- Prior Platform baseline: 808 passed, 62 environment-gated tests skipped. Follow-up: 22 focused tests and TypeScript passed. No database-backed owner/quota E2E has been run for these changes.
-- Prior Web baseline: 549 tests passed. Follow-up: 48 focused panel/App tests, changed-file lint and production build passed.
+- Platform: TypeScript and 25 focused auth/quota/schema tests passed. Disposable PostgreSQL 17 + pgvector runs the complete actual migration chain and replay; 11 tests pass with two HTTP processes, public MCP adapter, synthetic owners, real SQL counters, consent/code/refresh/revocation, DB failures and projected catalog records. No production data or credentials used.
+- Prior Web baseline: 549 tests passed; earlier 48 focused panel/App tests and production build passed. Reconnect follow-up: 6 panel tests and changed-file ESLint passed. Browser rendering evidence remains from the earlier mocked-data checks.
 - Prior Playwright desktop and 390×844 checks used mocked API data. They prove rendering only, not actual quota or OAuth integration; repeat after integration.
 
 The deterministic Store scenarios are in `tests/store-readiness.test.ts`. They run entirely against an in-memory MCP transport and a closed fixture API:
@@ -100,25 +101,39 @@ The deterministic Store scenarios are in `tests/store-readiness.test.ts`. They r
 | Known repository | `atlasrepo_get_repository`, `MCPJam/inspector`, canonical URL and evidence |
 | Missing repository | exact `atlasrepo-review-fixture/not-present-20260930`, stable not-found error |
 
-The three negative discovery cases are manifest metadata, NOT executed model-selection tests. Adapter tests cover malformed input, invalid output shapes, bounded streams and safe errors. The fixture now respects limits/filters and has an empty-result scenario, but it does not execute real ranking, OAuth, database quota or ChatGPT/mobile behavior.
+The three negative discovery cases are manifest metadata, NOT executed model-selection tests. Adapter fixtures cover malformed input, output shapes, bounded streams and safe errors. Separate private Platform PostgreSQL E2E tests execute actual OAuth and quota behavior; neither suite proves model tool selection, live ranking quality or ChatGPT/mobile consistency.
+
+The backend reproduction command is `node scripts/test-mcp-postgres.mjs` from
+the private Platform repository, with this MCP checkout as its sibling. The runner
+initializes and destroys a temporary Unix-socket cluster and ignores production
+DATABASE_URL. PostgreSQL17 with pgvector is required by existing migrations;
+`MCP_TEST_PG_BIN` can select an installed binary directory. The new quota itself
+needs only PostgreSQL, no Redis service or new runtime secret.
 
 ## Account quota and connection checks
 
 Platform and Web changes are kept in their owning repositories:
 
 - `GET /api/account/mcp-oauth` returns an additive `quota` object with `tier`, `plan`, `unit`, `limit`, `used`, `remaining`, `windowSeconds`, `resetAt`, and `unlimited`.
-- Existing quota accounting is a process-local Map and is NOT authoritative across replicas or the separate public MCP adapter. The follow-up labels it `authoritative: false, source: process_local`; UI hides these diagnostic numbers. In particular, unlimited usage zero was not evidence of zero usage.
-- REST quota keys now prefer owner ID over OAuth client/application ID, matching Platform MCP. This fixes key selection only, not durable accounting or public adapter identity.
-- Connection rows remain filtered by `user_id`. Presentation distinguishes active, refresh_required, expired, revoked and unknown without changing token validity or grants. SQL window counts cover all owner rows although only 50 rows are listed.
+- Authenticated owner usage now comes from atomic PostgreSQL accounting, labeled `authoritative:true, source:postgres`. API keys, sessions and OAuth clients share one owner/minute bucket across replicas. Anonymous and ownerless configured static keys retain their existing local policy and are not presented as owner counters.
+- One admitted MCP tool execution or metered catalog REST request is one request unit. Initialize/list/access/account reads are not tool calls. Invalid MCP identity/scope/input and quota denials do not debit; admitted execution failures do. Unlimited limit/remaining/reset are null, while used remains measured. Inactive finite reset is null.
+- Connection rows remain filtered by `user_id`. Presentation distinguishes active, refresh_required, reconnect_required (legacy NULL audience), expired, revoked and unknown. SQL window counts cover all owner rows although only 50 are listed. Reconnection is user initiated; legacy audiences are not backfilled or automatically granted.
 - The UI no longer calls a failed/loading fetch zero/not-connected, exposes quota units/windows when available, does not invent a meaning for null reset, and refreshes at expiry and every 30 seconds. Refreshable connections remain revocable.
 
-## Release blockers requiring further work
+## Security remediation and remaining release blockers
 
-1. Public MCP HTTP adapter still ignores caller bearer and uses its environment client. It must validate/forward the caller identity without a shared environment-key fallback. Invalid supplied tokens must never downgrade to anonymous.
-2. OAuth `mcp:read` scope validation/enforcement and HTTP 401/403 handling are incomplete. The exact security-contract plan must be agreed with the parent before editing. Resource/audience discovery across the separate MCP origin also needs confirmation.
-3. Account quotas need atomic shared database accounting and real multi-owner/multi-instance tests, not Map snapshots. No migration, Redis service or runtime config was created in this pass.
-4. Production recommendation storage substitutes unrelated popular stories for no-match. The owning AtlasAI worker must fix `src/storage/stories.ts`; this task has not edited that file. Adapter fixtures cannot prove the production fix.
-5. Platform legacy MCP tool schemas/output projection and session expiry/error paths need end-to-end verification. The standalone adapter fixes do not automatically fix the legacy five-tool server.
+Implemented after user approval and integration-owner ACK: caller credential
+binding without HTTP environment-key fallback; canonical audience and fixed issuer;
+strict 401/403/503 paths; atomic owner quota; transactional code/refresh and family
+revocation; strict legacy/public DTOs; session ownership/idle expiry; hidden restricted
+backend handoff. Additive migration IDs are `202610010010_api_owner_quota_windows`
+and `202610010011_mcp_resource_binding`. They preserve NULL audiences and do not
+create grants. Read-only GPT-6 Astra review identified a legacy delayed-body expiry
+race; the follow-up revalidates after body read and adds the corresponding PG/HTTP test.
+
+1. The existing `/oauth/authorize` returns JSON login/consent instructions. No browser consent consumer was found in the reviewed Web tree. The PG suite manually drives consent; it does not prove ChatGPT/Codex browser onboarding. Coordinate the Web consent route/login flow with the integration owner before claiming reconnect works.
+2. Canonical and legacy recommendation handlers now use honest literal catalog matching with empty no-match results. Main's grounded semantic implementation still needs integration and real relevance evidence. This task has not edited its owned `src/storage/stories.ts`; no fallback is asserted to be a proven rejection root cause.
+3. All changes remain local pending one coordinated release. Live HTTPS/resource/issuer routing, inspector traces, supported client flows and the complete actual submitted-case set still require verification.
 
 ## Required checks before submission
 
